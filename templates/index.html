@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Solar Panel Power Loss Prediction</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#060b14;--surface:#0d1422;--surface2:#111c2e;--border:#1a2740;--border2:#223057;--text:#e2eaf8;--muted:#7f91ad;--teal:#00d4c8;--amber:#f5a623;--red:#ff5f6e;--green:#3dffa0;--blue:#4d9eff;--purple:#b17fff}
+*{box-sizing:border-box;margin:0;padding:0}body{min-height:100vh;background:var(--bg);color:var(--text);font-family:Syne,sans-serif}header{padding:42px 5%;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#071527,#0a1e3a 62%,#06121f)}.badge{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(0,212,200,.3);background:rgba(0,212,200,.12);color:var(--teal);border-radius:999px;padding:6px 14px;font:11px "Space Mono";letter-spacing:1px;margin-bottom:15px}.dot{width:7px;height:7px;border-radius:50%;background:var(--teal);animation:pulse 1.6s infinite}@keyframes pulse{50%{opacity:.35;transform:scale(.75)}}h1{font-size:clamp(28px,4vw,46px);line-height:1.05;font-weight:800;color:white}h1 span{color:var(--teal)}.sub{max-width:760px;color:var(--muted);line-height:1.7;margin-top:12px}.wrap{padding:32px 5%;display:grid;gap:22px}.kpis,.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card,.kpi{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:22px}.kpi-label,.card-title,label{font:10px "Space Mono";letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}.kpi-value{font-size:28px;font-weight:800;margin-top:9px}.teal{color:var(--teal)}.green{color:var(--green)}.amber{color:var(--amber)}.blue{color:var(--blue)}.red{color:var(--red)}.predict{display:grid;grid-template-columns:1fr .9fr;gap:20px}.inputs{display:grid;grid-template-columns:1fr 1fr;gap:14px}.input-group{display:grid;gap:8px}input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);font:14px "Space Mono";padding:12px 14px;outline:none}input:focus{border-color:var(--teal)}button{width:100%;margin-top:16px;background:var(--teal);border:0;border-radius:7px;color:#011a19;font-weight:800;font-size:15px;padding:14px;cursor:pointer}button:hover{background:#00f0e2}.result{margin-top:16px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:20px}.loss{font-size:44px;font-weight:800;line-height:1}.pill{display:inline-block;margin-top:10px;border-radius:999px;padding:7px 14px;font:12px "Space Mono";font-weight:700}.pill.LOW{background:rgba(61,255,160,.1);border:1px solid rgba(61,255,160,.35);color:var(--green)}.pill.MEDIUM{background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.35);color:var(--amber)}.pill.HIGH{background:rgba(255,95,110,.12);border:1px solid rgba(255,95,110,.35);color:var(--red)}.action{margin-top:13px;color:var(--muted);font-size:13px;line-height:1.7;border-left:2px solid var(--border2);padding-left:12px}.features{display:grid;grid-template-columns:1fr 1fr;gap:10px}.feat{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:12px}.feat b{display:block;color:white;font-size:18px;margin-top:5px}.prof{line-height:1.8;color:var(--muted);font-size:14px}.prof strong{color:var(--teal)}canvas{width:100%!important;max-height:220px}@media(max-width:900px){.kpis,.grid,.predict{grid-template-columns:1fr}.inputs,.features{grid-template-columns:1fr}}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:20px}.section-title{font-size:20px;font-weight:800;color:white;margin-top:4px}.section-title::before{content:"";display:inline-block;width:4px;height:20px;background:var(--teal);border-radius:2px;margin-right:10px;vertical-align:-4px}.chart-card{min-height:300px}.chart-card canvas{max-height:260px}@media(max-width:900px){.charts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="badge"><span class="dot"></span>FLASK + XGBOOST API CONNECTED</div>
+  <h1>Solar Panel <span>Power Loss</span><br/>Prediction System</h1>
+  <p class="sub">A real frontend-to-ML project: the dashboard sends sensor values to a Flask `/predict` API, the backend runs the trained XGBoost model, and the response drives the maintenance recommendation.</p>
+</header>
+
+<main class="wrap">
+  <section class="kpis">
+    <div class="kpi"><div class="kpi-label">Model</div><div class="kpi-value teal">XGBoost</div></div>
+    <div class="kpi"><div class="kpi-label">R2 Score</div><div class="kpi-value green">{{ "%.3f"|format(metrics.R2) }}</div></div>
+    <div class="kpi"><div class="kpi-label">RMSE</div><div class="kpi-value blue">{{ "%.4f"|format(metrics.RMSE) }}</div></div>
+  </section>
+
+  <section>
+    <div class="section-title">Model Graphs</div>
+    <div class="charts" style="margin-top:18px">
+      <div class="card chart-card">
+        <div class="card-title">Predicted Power Loss Over Time</div>
+        <canvas id="lossTimeChart"></canvas>
+      </div>
+      <div class="card chart-card">
+        <div class="card-title">Maintenance Zone Distribution</div>
+        <canvas id="distChart"></canvas>
+      </div>
+      <div class="card chart-card">
+        <div class="card-title">Feature Importance</div>
+        <canvas id="featureChart"></canvas>
+      </div>
+      <div class="card chart-card">
+        <div class="card-title">Predicted vs Actual</div>
+        <canvas id="scatterChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section class="predict">
+    <div class="card">
+      <div class="card-title">Live Sensor Input</div>
+      <div class="inputs" style="margin-top:16px">
+        <div class="input-group"><label>Irradiation (W/m2)</label><input type="number" id="irr" value="720" min="0" max="1200"></div>
+        <div class="input-group"><label>Ambient Temp (C)</label><input type="number" id="amb" value="31" min="-10" max="55"></div>
+        <div class="input-group"><label>Module Temp (C)</label><input type="number" id="mod" value="48" min="0" max="90"></div>
+        <div class="input-group"><label>Hour of Day</label><input type="number" id="hour" value="13" min="0" max="23"></div>
+      </div>
+      <button onclick="runPrediction()">Run ML Prediction</button>
+      <div class="result">
+        <div class="kpi-label">Predicted Loss</div>
+        <div id="loss" class="loss amber">--%</div>
+        <span id="severity" class="pill MEDIUM">WAITING</span>
+        <div id="action" class="action">Enter sensor values and run the model.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Backend Physics Features</div>
+      <div class="features" style="margin-top:16px">
+        <div class="feat"><div class="kpi-label">DC Theoretical</div><b id="dc">-- W</b></div>
+        <div class="feat"><div class="kpi-label">Temp Delta</div><b id="delta">-- C</b></div>
+        <div class="feat"><div class="kpi-label">Temp Loss Factor</div><b id="tlf">--%</b></div>
+        <div class="feat"><div class="kpi-label">Irr Rolling</div><b id="roll">--</b></div>
+      </div>
+      <div style="margin-top:22px"><canvas id="gauge"></canvas></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <div class="card-title">API Contract</div>
+      <p class="prof">Frontend sends <strong>irradiation</strong>, <strong>ambient_temp</strong>, <strong>module_temp</strong>, and <strong>hour</strong> to Flask. Flask returns predicted loss, severity, action, model metrics, and derived physics features.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Leakage Fix</div>
+      <p class="prof">The deployed model avoids using DC_Power or AC_Power as input because those are not available before prediction. This makes the website a real inference system instead of a formula demo.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Dataset</div>
+      <p class="prof">If Kaggle Plant 1 CSV files are present, Flask trains from them. If not, it trains from a realistic synthetic physics dataset so the project still runs for demonstration.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+let gauge;
+const chartTheme = {
+  color: '#7f91ad',
+  grid: '#1a2740',
+  font: { family: "'Space Mono', monospace", size: 10 }
+};
+
+function setGauge(value, color){
+  const pct = Math.max(0, Math.min(100, value));
+  if(!gauge){
+    gauge = new Chart(document.getElementById('gauge'), {
+      type:'doughnut',
+      data:{datasets:[{data:[pct,100-pct],backgroundColor:[color,'#1a2740'],borderWidth:0,circumference:180,rotation:270}]},
+      options:{plugins:{legend:{display:false},tooltip:{enabled:false}},cutout:'78%'}
+    });
+  } else {
+    gauge.data.datasets[0].data = [pct, 100-pct];
+    gauge.data.datasets[0].backgroundColor = [color, '#1a2740'];
+    gauge.update();
+  }
+}
+
+function chartOptions(extra = {}){
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: chartTheme.color, font: chartTheme.font } } },
+    scales: {
+      x: { grid: { color: chartTheme.grid }, ticks: { color: chartTheme.color, font: chartTheme.font } },
+      y: { grid: { color: chartTheme.grid }, ticks: { color: chartTheme.color, font: chartTheme.font } }
+    },
+    ...extra
+  };
+}
+
+async function loadCharts(){
+  const res = await fetch('/chart-data');
+  const data = await res.json();
+
+  new Chart(document.getElementById('lossTimeChart'), {
+    type: 'line',
+    data: {
+      labels: data.loss_over_time.labels,
+      datasets: [
+        { label: 'Actual', data: data.loss_over_time.actual, borderColor: '#7f91ad', borderWidth: 1.5, pointRadius: 2 },
+        { label: 'Predicted', data: data.loss_over_time.predicted, borderColor: '#f5a623', backgroundColor: 'rgba(245,166,35,.08)', borderWidth: 2, pointRadius: 3, fill: true }
+      ]
+    },
+    options: chartOptions({ scales: { x: { grid: { color: chartTheme.grid }, ticks: { color: chartTheme.color } }, y: { grid: { color: chartTheme.grid }, ticks: { color: chartTheme.color, callback: v => v + '%' } } } })
+  });
+
+  new Chart(document.getElementById('distChart'), {
+    type: 'bar',
+    data: {
+      labels: data.distribution.labels,
+      datasets: [{ data: data.distribution.values, backgroundColor: ['rgba(61,255,160,.7)','rgba(245,166,35,.75)','rgba(255,95,110,.75)'], borderRadius: 6 }]
+    },
+    options: chartOptions({ plugins: { legend: { display: false } } })
+  });
+
+  new Chart(document.getElementById('featureChart'), {
+    type: 'bar',
+    data: {
+      labels: data.feature_importance.labels,
+      datasets: [{ data: data.feature_importance.values, backgroundColor: '#00d4c8', borderRadius: 4 }]
+    },
+    options: chartOptions({ indexAxis: 'y', plugins: { legend: { display: false } } })
+  });
+
+  new Chart(document.getElementById('scatterChart'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        { label: 'Predictions', data: data.scatter, backgroundColor: 'rgba(0,212,200,.45)', pointRadius: 4 },
+        { label: 'Perfect fit', type: 'line', data: [{x:0,y:0},{x:.35,y:.35}], borderColor: '#ff5f6e', borderDash: [4,4], borderWidth: 1.5, pointRadius: 0 }
+      ]
+    },
+    options: chartOptions({
+      scales: {
+        x: { title: { display: true, text: 'Actual Loss', color: chartTheme.color }, grid: { color: chartTheme.grid }, ticks: { color: chartTheme.color, callback: v => (v * 100).toFixed(0) + '%' } },
+        y: { title: { display: true, text: 'Predicted Loss', color: chartTheme.color }, grid: { color: chartTheme.grid }, ticks: { color: chartTheme.color, callback: v => (v * 100).toFixed(0) + '%' } }
+      }
+    })
+  });
+}
+
+async function runPrediction(){
+  const payload = {
+    irradiation: Number(document.getElementById('irr').value),
+    ambient_temp: Number(document.getElementById('amb').value),
+    module_temp: Number(document.getElementById('mod').value),
+    hour: Number(document.getElementById('hour').value)
+  };
+  const res = await fetch('/predict', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if(!res.ok){ throw new Error(data.error || 'Prediction failed'); }
+
+  const cls = data.severity;
+  const color = cls === 'LOW' ? '#3dffa0' : cls === 'MEDIUM' ? '#f5a623' : '#ff5f6e';
+  document.getElementById('loss').textContent = data.predicted_loss_pct.toFixed(1) + '%';
+  document.getElementById('loss').className = 'loss ' + (cls === 'LOW' ? 'green' : cls === 'MEDIUM' ? 'amber' : 'red');
+  document.getElementById('severity').textContent = cls;
+  document.getElementById('severity').className = 'pill ' + cls;
+  document.getElementById('action').textContent = data.action;
+  document.getElementById('dc').textContent = data.features.dc_theoretical + ' W';
+  document.getElementById('delta').textContent = data.features.temperature_delta + ' C';
+  document.getElementById('tlf').textContent = data.features.temp_loss_factor_pct + '%';
+  document.getElementById('roll').textContent = data.features.irradiation_rolling;
+  setGauge(data.predicted_loss_pct, color);
+}
+
+document.querySelectorAll('input').forEach(input => input.addEventListener('change', runPrediction));
+window.addEventListener('load', () => {
+  runPrediction();
+  loadCharts();
+});
+</script>
+</body>
+</html>
