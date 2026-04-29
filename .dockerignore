@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+flask.err.log
+flask.out.log
+server.log
+.git/
