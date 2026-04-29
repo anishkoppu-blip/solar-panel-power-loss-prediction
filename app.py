@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, render_template_string, request
 
 from ml_pipeline import dashboard_chart_data, load_or_train_model, predict
 
@@ -16,7 +17,18 @@ MODEL_ARTIFACT = load_or_train_model()
 
 @app.get("/")
 def index():
-    return render_template("index.html", metrics=MODEL_ARTIFACT["metrics"])
+    template_path = Path(app.template_folder or "templates") / "index.html"
+    if template_path.exists():
+        return render_template("index.html", metrics=MODEL_ARTIFACT["metrics"])
+
+    root_index = Path("index.html")
+    if root_index.exists():
+        return render_template_string(root_index.read_text(encoding="utf-8"), metrics=MODEL_ARTIFACT["metrics"])
+
+    return (
+        "Missing frontend file. Upload templates/index.html to GitHub, then redeploy.",
+        500,
+    )
 
 
 @app.get("/health")
